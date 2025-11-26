@@ -63,13 +63,13 @@ canvas { display:block; }
     text-transform:uppercase; 
     color:#883af1; 
     font-weight:800; 
+    margin-top: -50px; /* رفع العنوان لأعلى */
 }
 #end-subtitle { 
     font-size:2rem; 
     max-width:80%; 
     line-height:1.5; 
     color:#e0ff55; 
-    text-shadow:0 0 10px #e0ff55, 0 0 20px #e0ff55; 
     margin-bottom:15px; 
     font-weight:500; 
 }
@@ -78,6 +78,44 @@ canvas { display:block; }
     color:white; 
     margin-bottom:30px; 
     font-weight:600; 
+}
+.stats-container {
+    display: flex;
+    width: 80%;
+    max-width: 900px;
+    margin: 20px 0;
+    border: 2px solid #e0ff55;
+    border-radius: 10px;
+    overflow: hidden;
+    background: rgba(33, 27, 71, 0.8);
+}
+.stats-column {
+    flex: 1;
+    padding: 20px;
+    text-align: left;
+}
+.stats-divider {
+    width: 2px;
+    background: #e0ff55;
+    margin: 10px 0;
+}
+.stats-header {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #e0ff55;
+    margin-bottom: 15px;
+    text-align: center;
+}
+.stats-row {
+    margin-bottom: 10px;
+    font-size: 1.1rem;
+}
+.stats-total {
+    font-weight: 700;
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px dashed #e0ff55;
+    color: #e0ff55;
 }
 button { 
     padding:15px 40px; 
@@ -90,6 +128,7 @@ button {
     font-weight:bold; 
     transition: transform 0.2s; 
     font-family:'Jost', sans-serif; 
+    margin-top: 20px;
 }
 button:hover { 
     transform: scale(1.05); 
@@ -151,6 +190,14 @@ button:hover {
 @media (max-width:768px){ 
     #mobile-controls { display:block; } 
     .controls-hint{display:none;} 
+    .stats-container {
+        flex-direction: column;
+    }
+    .stats-divider {
+        width: 100%;
+        height: 2px;
+        margin: 10px 0;
+    }
 }
 </style>
 </head>
@@ -161,13 +208,29 @@ button:hover {
         SCORE: <span id="score">0</span>
         <span style="margin-left: 20px;">TIME: <span id="time">30</span>s</span>
     </div>
-    <div class="controls-hint">WASD / Arrows to Move | SPACE to Shoot</div>
 </div>
 
 <div id="game-over-screen">
-    <h1 id="end-title"></h1>
-    <p id="end-subtitle"></p>
-    <div id="end-stats"></div>
+    <h1 id="end-title">MISSION ACCOMPLISHED</h1>
+    
+    <div class="stats-container">
+        <div class="stats-column">
+            <div class="stats-header">Your Score</div>
+            <div class="stats-row">VEGF-A Receptors Blocked: <span id="player-vegfa">0</span></div>
+            <div class="stats-row">Ang-2 Receptors Blocked: <span id="player-ang2">0</span></div>
+            <div class="stats-total">Total: <span id="player-vegfa-total">0</span> + <span id="player-ang2-total">0</span> = <span id="player-total">0</span></div>
+        </div>
+        
+        <div class="stats-divider"></div>
+        
+        <div class="stats-column">
+            <div class="stats-header">Competitor Score</div>
+            <div class="stats-row">VEGF-A Receptors Blocked: <span id="competitor-vegfa">0</span></div>
+            <div class="stats-total">Total: <span id="competitor-vegfa-total">0</span></div>
+        </div>
+    </div>
+    <p id="end-subtitle">75% of patients achieved absence of DME at Year 2 <br>(95% by Year 4)<br>Dry eyes... Steady lives.</p>
+    
     <button onclick="resetGame()">PLAY AGAIN</button>
 </div>
 
@@ -187,11 +250,29 @@ const timeEl = document.getElementById('time');
 const endScreen = document.getElementById('game-over-screen');
 const endTitle = document.getElementById('end-title');
 const endSubtitle = document.getElementById('end-subtitle');
-const endStats = document.getElementById('end-stats');
+
+// عناصر الإحصائيات الجديدة
+const playerVegfaEl = document.getElementById('player-vegfa');
+const playerAng2El = document.getElementById('player-ang2');
+const playerVegfaTotalEl = document.getElementById('player-vegfa-total');
+const playerAng2TotalEl = document.getElementById('player-ang2-total');
+const playerTotalEl = document.getElementById('player-total');
+const competitorVegfaEl = document.getElementById('competitor-vegfa');
+const competitorVegfaTotalEl = document.getElementById('competitor-vegfa-total');
 
 let width, height, gameRunning = true, score = 0, timeLeft = 30, lastTime = Date.now();
 const keys = {w:false, a:false, s:false, d:false, space:false};
 const joystick = {active:false, dx:0, dy:0, originX:0, originY:0};
+
+// إحصائيات اللاعب والمنافس
+let playerStats = {
+    vegfa: 0,
+    ang2: 0
+};
+
+let competitorStats = {
+    vegfa: 0
+};
 
 // Images - using your original image files
 const imgPlayer = new Image(); 
@@ -205,6 +286,10 @@ imgANG2.src = 'ANG-2.png';
 
 const imgVEGFA = new Image(); 
 imgVEGFA.src = 'VEGF-A.png';
+
+// إضافة صورة الخلفية الجديدة
+const imgBackground = new Image();
+imgBackground.src = 'bg.png';
 
 // Resize
 function resize(){ 
@@ -241,14 +326,14 @@ class Star{
 
 class Bullet{ 
     constructor(x, y, isPlayer = true){ 
-        this.x = x; 
-        this.y = y; 
-        this.radius = 4; 
-        this.speed = 10; 
-        this.active = true; 
-        this.isPlayer = isPlayer; 
-        this.color = isPlayer ? '#e0ff55' : '#883af1'; 
-    } 
+    this.x = x; 
+    this.y = y; 
+    this.radius = 4; 
+    this.speed = isPlayer ? 10 : 5; // AI bullets are slower
+    this.active = true; 
+    this.isPlayer = isPlayer; 
+    this.color = isPlayer ? '#e0ff55' : '#883af1'; 
+}
     update(){ 
         this.y -= this.speed; 
         if(this.y < -10) this.active = false; 
@@ -288,15 +373,17 @@ class Particle{
     } 
 }
 
-class Medicine { 
+class Logo { 
     constructor(){ 
-        this.x = Math.random() * (width - 40) + 20; 
+        this.x = Math.random() * (width - 60) + 30; 
         this.y = -50; 
-        this.width = 40; 
-        this.height = 40; 
+        this.width = 80; 
+        this.height = 80; 
         this.speed = 2; 
         this.active = true; 
-        this.rotation = 0; 
+        this.rotation = 0;
+        this.image = new Image();
+        this.image.src = 'logo.png';
     } 
     update(){ 
         this.y += this.speed; 
@@ -307,15 +394,7 @@ class Medicine {
         ctx.save(); 
         ctx.translate(this.x, this.y); 
         ctx.rotate(this.rotation); 
-        ctx.fillStyle = '#e0ff55'; 
-        ctx.beginPath(); 
-        ctx.arc(0, 0, 20, 0, Math.PI * 2); 
-        ctx.fill(); 
-        ctx.fillStyle = '#211b47'; 
-        ctx.font = 'bold 24px Jost'; 
-        ctx.textAlign = 'center'; 
-        ctx.textBaseline = 'middle'; 
-        ctx.fillText("+", 0, 0); 
+        ctx.drawImage(this.image, -this.width/2, -this.height/2, this.width, this.height); 
         ctx.restore(); 
     } 
 }
@@ -326,13 +405,15 @@ class Asteroid {
     } 
     reset(initial = false){ 
         // Increased size for ANG-2 and VEGF-A
-        this.width = 70; 
-        this.height = 70; 
+        this.width = 90; 
+        this.height = 90; 
         this.x = Math.random() * (width - this.width) + this.width / 2; 
         this.y = initial ? -Math.random() * height : -100; 
         this.speed = 1 + Math.random() * 1.5; 
         this.active = true; 
         this.image = Math.random() < 0.5 ? imgANG2 : imgVEGFA; 
+        // إضافة خاصية لتحديد نوع الكويكب
+        this.type = this.image === imgANG2 ? 'ANG2' : 'VEGFA';
     } 
     update(){ 
         this.y += this.speed; 
@@ -347,10 +428,11 @@ class Player {
     constructor(){ 
         this.x = width / 2 - 100; 
         this.y = height - 100; 
-        // Increased size for Vabysmo
-        this.width = 80; 
-        this.height = 90; 
-        this.speed = 5; 
+        // size for Vabysmo
+        this.width = 120; 
+        this.height = 130; 
+        // تقليل سرعة الطائرة Vabysmo من 5 إلى 3
+        this.speed = 3; 
         this.cooldown = 0; 
         this.weaponLevel = 1; 
     } 
@@ -380,10 +462,10 @@ class Player {
     } 
     shoot(){ 
         if(this.weaponLevel === 1){ 
-            bullets.push(new Bullet(this.x, this.y - 45, true)); 
+            bullets.push(new Bullet(this.x, this.y - 60, true)); 
         } else if(this.weaponLevel === 2){ 
-            bullets.push(new Bullet(this.x - 15, this.y - 45, true)); 
-            bullets.push(new Bullet(this.x + 15, this.y - 45, true)); 
+            bullets.push(new Bullet(this.x - 15, this.y - 60, true)); 
+            bullets.push(new Bullet(this.x + 15, this.y - 60, true)); 
         } 
         this.cooldown = 15; 
     } 
@@ -396,9 +478,9 @@ class IdiotAI {
     constructor(){ 
         this.x = width / 2 + 100; 
         this.y = height - 100; 
-        // Increased size for Competitor
-        this.width = 80; 
-        this.height = 80; 
+        // size for Competitor
+        this.width = 120; 
+        this.height = 130; 
         this.alive = true; 
         this.vx = 2; 
         this.vy = 0; 
@@ -406,8 +488,8 @@ class IdiotAI {
         this.targetY = height - 100; 
         this.moveTimer = 0; 
         this.shootTimer = 0; 
-        // Slower movement speed for Competitor
-        this.moveSpeed = 0.01; 
+        // تقليل سرعة الطائرة Competitor من 0.005 إلى 0.003
+        this.moveSpeed = 0.003; 
     } 
     update(){ 
         if(!this.alive) return; 
@@ -429,8 +511,8 @@ class IdiotAI {
         this.y = Math.max(this.height / 2, Math.min(height - this.height / 2, this.y)); 
         
         this.shootTimer++; 
-        // Slower shooting rate for Competitor Rami Competitor
-        if(this.shootTimer > Math.random() * 180 + 120){ 
+        // Slower shooting rate for Competitor
+        if(this.shootTimer > Math.random() * 300 + 200){ 
             bullets.push(new Bullet(this.x, this.y - 40, false)); 
             this.shootTimer = 0; 
         } 
@@ -443,8 +525,8 @@ class IdiotAI {
 
 const player = new Player();
 const idiotAI = new IdiotAI();
-let bullets = [], asteroids = [], medicines = [], particles = [], stars = Array(50).fill().map(() => new Star());
-let spawnTimer = 0, medicineTimer = 0;
+let bullets = [], asteroids = [], logos = [], particles = [], stars = Array(50).fill().map(() => new Star());
+let spawnTimer = 0, logoTimer = 0;
 
 // Collisions
 function checkCollisions(){
@@ -454,19 +536,38 @@ function checkCollisions(){
             let a = asteroids[j];
             let dist = Math.hypot(b.x - a.x, b.y - a.y);
             if(dist < a.width / 2 + b.radius){ 
+                // إذا كانت الرصاصة من Competitor والكوكب من نوع ANG2، لا تحدث تصادم
+                if(!b.isPlayer && a.type === 'ANG2') {
+                    continue; // تخطي هذا التصادم
+                }
+                
                 b.active = false; 
                 a.active = false; 
+                
+                // تحديث الإحصائيات
                 if(b.isPlayer){ 
                     score++; 
                     scoreEl.innerText = score; 
-                } 
+                    
+                    if(a.type === 'VEGFA') {
+                        playerStats.vegfa++;
+                    } else if(a.type === 'ANG2') {
+                        playerStats.ang2++;
+                    }
+                } else {
+                    // Competitor فقط يضرب VEGF-A
+                    if(a.type === 'VEGFA') {
+                        competitorStats.vegfa++;
+                    }
+                }
+                
                 break; 
             }
         }
     }
     
-    for(let i = medicines.length - 1; i >= 0; i--){ 
-        let m = medicines[i]; 
+    for(let i = logos.length - 1; i >= 0; i--){ 
+        let m = logos[i]; 
         let dist = Math.hypot(player.x - m.x, player.y - m.y); 
         if(dist < player.width / 2 + m.width / 2){ 
             m.active = false; 
@@ -482,16 +583,25 @@ function createExplosion(x, y, color, count = 5){
     } 
 }
 
+// تحديث عرض الإحصائيات
+function updateStatsDisplay() {
+    playerVegfaEl.textContent = playerStats.vegfa;
+    playerAng2El.textContent = playerStats.ang2;
+    playerVegfaTotalEl.textContent = playerStats.vegfa;
+    playerAng2TotalEl.textContent = playerStats.ang2;
+    playerTotalEl.textContent = playerStats.vegfa + playerStats.ang2;
+    
+    competitorVegfaEl.textContent = competitorStats.vegfa;
+    competitorVegfaTotalEl.textContent = competitorStats.vegfa;
+}
+
 // End Game
 function endGame(){
     gameRunning = false;
-    endTitle.innerText = "MISSION ACCOMPLISHED";
-    endSubtitle.innerHTML = "75% of patients achieved absence of DME at Year 2 (95% by Year 4)<br>Dry eyes... Steady lives.";
     
-    // Generate competitor score that's always less than player score
-    let competitorScore = Math.max(0, Math.floor(score * (0.3 + Math.random() * 0.4)));
+    // تحديث عرض الإحصائيات
+    updateStatsDisplay();
     
-    endStats.innerHTML = `Your Score: ${score} | Competitor Score: ${competitorScore}`;
     endScreen.style.display = 'flex';
 }
 
@@ -504,14 +614,19 @@ function resetGame(){
     asteroids = []; 
     bullets = []; 
     particles = []; 
-    medicines = []; 
+    logos = []; 
     player.x = width / 2 - 50; 
     player.weaponLevel = 1; 
-    medicineTimer = 0; 
+    logoTimer = 0; 
     idiotAI.x = width / 2 + 50; 
     idiotAI.alive = true; 
     gameRunning = true; 
     lastTime = Date.now(); 
+    
+    // إعادة تعيين الإحصائيات
+    playerStats = { vegfa: 0, ang2: 0 };
+    competitorStats = { vegfa: 0 };
+    
     endScreen.style.display = 'none'; 
     requestAnimationFrame(loop); 
 }
@@ -534,25 +649,24 @@ function loop(){
     
     timeEl.innerText = Math.ceil(timeLeft);
     
-    // Clear canvas with background color
-    ctx.fillStyle = '#211b47'; 
-    ctx.fillRect(0, 0, width, height);
+    // رسم الخلفية الجديدة بدلاً من اللون
+    ctx.drawImage(imgBackground, 0, 0, width, height);
     
     // Draw stars
     stars.forEach(s => { s.update(); s.draw(); });
     
     // Spawn new asteroids
     spawnTimer++; 
-    if(spawnTimer > 60){ 
+    if(spawnTimer > 30){ 
         asteroids.push(new Asteroid()); 
         spawnTimer = 0; 
     }
     
-    // Spawn new medicines
-    medicineTimer++; 
-    if(medicineTimer > 900){ 
-        medicines.push(new Medicine()); 
-        medicineTimer = 0; 
+    // Spawn new logos
+    logoTimer++; 
+    if(logoTimer > 900){ 
+        logos.push(new Logo()); 
+        logoTimer = 0; 
     }
 
     // Update and draw game objects
@@ -569,9 +683,9 @@ function loop(){
     asteroids = asteroids.filter(a => a.active); 
     asteroids.forEach(a => a.draw());
     
-    medicines.forEach(m => m.update()); 
-    medicines = medicines.filter(m => m.active); 
-    medicines.forEach(m => m.draw());
+    logos.forEach(m => m.update()); 
+    logos = logos.filter(m => m.active); 
+    logos.forEach(m => m.draw());
     
     particles.forEach(p => p.update()); 
     particles = particles.filter(p => p.life > 0); 
@@ -581,7 +695,7 @@ function loop(){
     requestAnimationFrame(loop);
 }
 
-// Keyboard input
+// Rami movement
 window.addEventListener('keydown', e => { 
     if(e.key === 'w' || e.key === 'ArrowUp') keys.w = true; 
     if(e.key === 'a' || e.key === 'ArrowLeft') keys.a = true; 
@@ -598,9 +712,9 @@ window.addEventListener('keyup', e => {
     if(e.key === ' ') keys.space = false; 
 });
 
-// Add keyboard X to restart from game over screen
+// Rami restart button
 window.addEventListener('keydown', e => {
-    if(e.key === 'x' || e.key === 'X') {
+    if(e.key === 'r' || e.key === 'r') {
         if(!gameRunning) {
             resetGame();
         }
