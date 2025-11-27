@@ -318,7 +318,7 @@ button:hover {
     
     <!-- Slide 2: Statistics -->
     <div id="slide2">
-        <h1 id="stats-title">MISSION ACCOMPLISHED</h1>
+        <h1 id="end-title">MISSION ACCOMPLISHED</h1>
         
         <div class="stats-container">
             <div class="stats-column">
@@ -552,12 +552,12 @@ class Player {
         // size for Vabysmo
         this.width = 120; 
         this.height = 130; 
-        // تقليل سرعة الطائرة Vabysmo من 5 إلى 3
-        this.speed = 3; 
+        //increase the speed rami
+        this.speed = 6; 
         this.cooldown = 0; 
         this.weaponLevel = 1; 
         this.image = imgPlayer;
-    } 
+    }
     update(){ 
         let dx = 0, dy = 0; 
         if(keys.w) dy = -1; 
@@ -610,8 +610,8 @@ class IdiotAI {
         this.targetY = height - 100; 
         this.moveTimer = 0; 
         this.shootTimer = 0; 
-        // تقليل سرعة الطائرة Competitor من 0.005 إلى 0.003
-        this.moveSpeed = 0.003; 
+        //increase the speed rami
+        this.moveSpeed = 0.007; 
         this.image = imgAI;
     } 
     update(){ 
@@ -796,12 +796,47 @@ function returnToStartScreen() {
         countdownTimer = null;
     }
     
+    // Reset game state completely
+    resetGameState();
+    
     // Hide game over screen and show start screen
     endScreen.style.display = 'none';
     startScreen.style.display = 'flex';
     
     // Update high score display
     highScoreDisplay.textContent = highScore;
+}
+
+// Function to completely reset the game state
+function resetGameState() {
+    score = 0;
+    timeLeft = 30;
+    scoreEl.innerText = "0";
+    timeEl.innerText = "30";
+    asteroids = [];
+    bullets = [];
+    particles = [];
+    logos = [];
+    player.x = width / 2 - 100;
+    player.y = height - 100;
+    player.weaponLevel = 1;
+    logoTimer = 0;
+    spawnTimer = 0;
+    idiotAI.x = width / 2 + 100;
+    idiotAI.y = height - 100;
+    idiotAI.alive = true;
+    gameRunning = false;
+    
+    // Reset player and competitor stats
+    playerStats = { vegfa: 0, ang2: 0 };
+    competitorStats = { vegfa: 0 };
+    
+    // Reset UI elements
+    playerVegfaEl.textContent = "0";
+    playerAng2El.textContent = "0";
+    playerTotalEl.textContent = "0";
+    competitorVegfaEl.textContent = "0";
+    competitorVegfaTotalEl.textContent = "0";
 }
 
 // Update high score
@@ -834,6 +869,9 @@ function endGame(){
 
 // Start Game
 function startGame() {
+    // Reset the game state before starting
+    resetGameState();
+    
     startScreen.style.display = 'none';
     gameRunning = true;
     lastTime = Date.now();
@@ -853,29 +891,16 @@ function resetGame(){
         countdownTimer = null;
     }
     
-    score = 0; 
-    timeLeft = 30; 
-    scoreEl.innerText = "0"; 
-    timeEl.innerText = "30"; 
-    asteroids = []; 
-    bullets = []; 
-    particles = []; 
-    logos = []; 
-    player.x = width / 2 - 50; 
-    player.weaponLevel = 1; 
-    logoTimer = 0; 
-    idiotAI.x = width / 2 + 50; 
-    idiotAI.alive = true; 
-    gameRunning = true; 
-    lastTime = Date.now(); 
+    // Reset game state
+    resetGameState();
     
-    // إعادة تعيين الإحصائيات
-    playerStats = { vegfa: 0, ang2: 0 };
-    competitorStats = { vegfa: 0 };
+    // Start the game
+    gameRunning = true;
+    lastTime = Date.now();
     
-    endScreen.style.display = 'none'; 
+    endScreen.style.display = 'none';
     startScreen.style.display = 'none';
-    requestAnimationFrame(loop); 
+    requestAnimationFrame(loop);
 }
 
 // Game loop
@@ -1026,6 +1051,7 @@ function updateJoystick(x, y){
 
 // Initialize the game with the start screen visible
 resize();
+resetGameState(); // Ensure game state is properly reset on initial load
 startScreen.style.display = 'flex';
 </script>
 
